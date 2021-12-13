@@ -9,9 +9,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Twilio;
+using Twilio.AspNet.Core;
 using Twilio.Rest.Api.V2010.Account;
 using Twilio.Types;
 
@@ -19,37 +22,56 @@ namespace MovementAlarmAPI
 {
     [ApiController]
     [Route("api/notification")]
-    public class NotificationController : ControllerBase
+    public class NotificationController : Controller
     {
         public NotificationController()
         {
         }
 
-        [HttpGet]
-        public string Get()
+        [HttpPost]
+        [Route("notify")]
+        public string NotifyMovement(String input)
         {
-            string x = "Hola Mundo";
-            return x;
-        }
-
-        [HttpPost("notify")]
-        public string NotifyMovement(string messageContent, string imagePath, string imageName)
-        {
+            Environment.SetEnvironmentVariable("turnedOn", "true");
+            string messageContent = "Alerta, se detecto movimiento a las " + DateTime.Now;
             var accountSid = Environment.GetEnvironmentVariable("TWILIO_ACCOUNT_SID");
             var authToken = Environment.GetEnvironmentVariable("TWILIO_AUTH_TOKEN");
             TwilioClient.Init(accountSid, authToken);
 
             //string fileId = UploadImageToDriveAsync("Images\\test.png", "test2.png").Result;
-            string fileId = UploadImageToDriveAsync(imagePath, imageName).Result;
+            //string fileId = UploadImageToDriveAsync(imagePath, imageName).Result;
 
             var message = MessageResource.Create(
                 body: messageContent,
-                mediaUrl: new List<Uri> { new Uri("https://drive.google.com/uc?export=view&id=" + fileId) },
+                //mediaUrl: new List<Uri> { new Uri("https://drive.google.com/uc?export=view&id=" + fileId) },
                 from: new PhoneNumber("whatsapp:+14155238886"),
                 to: new PhoneNumber("whatsapp:+573136367416")
             );
 
             return message.Status.ToString();
+        }
+
+        [HttpPost]
+        [Route("receive")]
+        public bool ReceiveMessage(string From, string Body)
+        {
+            Environment.SetEnvironmentVariable("turnedOn", "false");
+            return true;
+        }
+
+        [HttpGet]
+        [Route("turnoff")]
+        public HttpStatusCodeResult Turn(HttpRequestMessage request)
+        {
+            string value = Environment.GetEnvironmentVariable("turnedOn");
+            if (value == "true")
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.OK);
+            }
+            else
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
         }
 
         [HttpGet("upload")]
